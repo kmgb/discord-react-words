@@ -1,11 +1,26 @@
 require('dotenv').config();
 const Discord = require('discord.js');
-const client = new Discord.Client();
+const client = new Discord.Client({ intents: [Discord.Intents.FLAGS.GUILDS, Discord.Intents.FLAGS.GUILD_MESSAGES] });
 
 console.log('discord-react-words startup');
 
-client.once('ready', () => {
-    console.log('Discord.js ready');
+const commandData = {
+    name: 'react',
+    description: 'Spells the given text with reaction emojis',
+    options: [{
+        name: 'input',
+        type: 'STRING',
+        description: 'Text to be printed with reaction',
+        required: true,
+    }
+    // TODO: Accept message ID or relative message index to react to
+    ]
+};
+
+client.once('ready', async () => {
+    console.log('Discord.js client ready');
+
+    client.application.commands.create(commandData);
 });
 
 if (process.env.TOKEN) {
@@ -47,16 +62,27 @@ const alphabetMap = new Map([
     ['z', '🇿'],
 ]);
 
-client.on('message', async (message) => {
-    var reactions = tryConvertToReactions(message.content);
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isCommand()) {
+        return;
+    }
 
-    if (reactions) {
+    if (interaction.commandName !== 'react') {
+        interaction.reply({ content: 'Unknown command', ephemeral: true });
+        return;
+    }
+
+    let reactions = tryConvertToReactions(interaction.options.get('input').value);
+    let message = (await interaction.channel.messages.fetch({ limit: 1 }))?.last();
+    if (message && reactions) {
+        interaction.reply({ content: "Reactions on the way!", ephemeral: true });
+
         for (const r of reactions) {
             await message.react(r);
         }
     }
     else {
-        await message.react('❌');
+        interaction.reply({ content: "Failed to react to last message", ephemeral: true });
     }
 });
 
