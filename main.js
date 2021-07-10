@@ -1,6 +1,9 @@
 require('dotenv').config();
 const Discord = require('discord.js');
 const client = new Discord.Client({ intents: [Discord.Intents.FLAGS.GUILDS, Discord.Intents.FLAGS.GUILD_MESSAGES] });
+const alphabetMap = require('./alphabet.js');
+
+const REACT_MESSAGE_MAX_LENGTH = 20; // Maximum reactions allowed by Discord
 
 console.log('discord-react-words startup');
 
@@ -31,37 +34,6 @@ else {
     process.exit(1);
 }
 
-// There are other emoji that may be used to substitute letters,
-// this could allow us to display multiple of the same letter in the future
-const alphabetMap = new Map([
-    ['a', '🇦'],
-    ['b', '🇧'],
-    ['c', '🇨'],
-    ['d', '🇩'],
-    ['e', '🇪'],
-    ['f', '🇫'],
-    ['g', '🇬'],
-    ['h', '🇭'],
-    ['i', '🇮'],
-    ['j', '🇯'],
-    ['k', '🇰'],
-    ['l', '🇱'],
-    ['m', '🇲'],
-    ['n', '🇳'],
-    ['o', '🇴'],
-    ['p', '🇵'],
-    ['q', '🇶'],
-    ['r', '🇷'],
-    ['s', '🇸'],
-    ['t', '🇹'],
-    ['u', '🇺'],
-    ['v', '🇻'],
-    ['w', '🇼'],
-    ['x', '🇽'],
-    ['y', '🇾'],
-    ['z', '🇿'],
-]);
-
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isCommand()) {
         return;
@@ -73,7 +45,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     let reactions = tryConvertToReactions(interaction.options.get('input').value);
-    let message = (await interaction.channel.messages.fetch({ limit: 1 }))?.last();
+    let message = (await interaction.channel?.messages?.fetch({ limit: 1 }))?.last();
     if (message && reactions) {
         interaction.reply({ content: "Reactions on the way!", ephemeral: true });
 
@@ -82,26 +54,40 @@ client.on('interactionCreate', async (interaction) => {
         }
     }
     else {
-        interaction.reply({ content: "Failed to react to last message", ephemeral: true });
+        interaction.reply({ content: "Failed to react", ephemeral: true });
     }
 });
 
 function tryConvertToReactions(inText) {
+    // TODO: Unicode normalizing
+    if (inText.length > REACT_MESSAGE_MAX_LENGTH) {
+        return null;
+    }
+
     var text = inText.toLowerCase(); // TODO: English only for now :(
 
     // Check text to ensure:
     // 1. Each letter is in our alphabet
-    // 2. Each letter only shows up once
+    // 2. We have enough of each character in the alphabet
     var letterCount = count(text);
     for (const elem of letterCount) {
-        if (!alphabetMap.has(elem[0]) || elem[1] > 1) {
+        let char = elem[0];
+        let charCount = elem[1];
+        if (!alphabetMap.has(char) || alphabetMap.get(char).length < charCount) {
             return null;
         }
     }
 
     var reactions = [];
+    var alphabetIndexMap = new Map(); // Keep track of the number of each letter used, so we can iterate over the options for each
     for (var i = 0; i < text.length; i++) {
-        reactions.push(alphabetMap.get(text.charAt(i)));
+        let char = text.charAt(i);
+        let charIndex = alphabetIndexMap.get(char) ?? 0;
+
+        reactions.push(alphabetMap.get(char)[charIndex]);
+
+        // Increment the amount of the letter, or initialize to 1
+        alphabetIndexMap.set(char, (alphabetIndexMap.get(char) ?? 0) + 1);
     }
 
     return reactions;
@@ -111,7 +97,7 @@ function tryConvertToReactions(inText) {
 function count(string) {
     var count = new Map();
     string.split('').forEach(function(s) {
-       count.get(s) ? count.set(s, count.get(s) + 1) : count.set(s, 1);
+        count.set(s, (count.get(s) ?? 0) + 1);
     });
     return count;
 }
