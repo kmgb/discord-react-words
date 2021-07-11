@@ -4,11 +4,12 @@ const client = new Discord.Client({ intents: [Discord.Intents.FLAGS.GUILDS, Disc
 const alphabetMap = require('./alphabet.js');
 
 const REACT_MESSAGE_MAX_LENGTH = 20; // Maximum reactions allowed by Discord
+const COMMAND_NAME = 'react';
 
 console.log('discord-react-words startup');
 
 const commandData = {
-    name: 'react',
+    name: COMMAND_NAME,
     description: 'Spells the given text with reaction emojis',
     options: [{
         name: 'input',
@@ -24,7 +25,7 @@ client.once('ready', async () => {
     console.log('Discord.js client ready');
 
     client.application.commands.create(commandData);
-    client.user.setActivity('/react', { type: 'LISTENING' });
+    client.user.setActivity('/'+COMMAND_NAME, { type: 'LISTENING' });
 });
 
 if (process.env.TOKEN) {
@@ -41,15 +42,21 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    if (interaction.commandName !== 'react') {
-        interaction.reply({ content: 'Unknown command', ephemeral: true });
+    if (!interaction.inGuild()) {
+        console.log('Received interaction outside of guild');
+        interaction.reply('Sorry, commands sent outside of servers are not supported');
+        return;
+    }
+
+    if (interaction.commandName !== COMMAND_NAME) {
         console.log('Received interaction with invalid command name: '+interaction.commandName);
+        interaction.reply({ content: 'Unknown command', ephemeral: true });
         return;
     }
 
     let input = interaction.options.get('input').value; // Required, so should not be null
 
-    console.log('Received /react interaction with input: '+input);
+    console.log('Received /'+COMMAND_NAME+' interaction with input: '+input);
 
     let reactions = tryConvertToReactions(input);
     let message = (await interaction.channel?.messages?.fetch({ limit: 1 }))?.last(); // Grab the last message in the channel
