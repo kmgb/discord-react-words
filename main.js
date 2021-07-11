@@ -24,6 +24,7 @@ client.once('ready', async () => {
     console.log('Discord.js client ready');
 
     client.application.commands.create(commandData);
+    client.user.setActivity('/react', { type: 'LISTENING' });
 });
 
 if (process.env.TOKEN) {
@@ -44,17 +45,33 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    let reactions = tryConvertToReactions(interaction.options.get('input').value);
-    let message = (await interaction.channel?.messages?.fetch({ limit: 1 }))?.last();
+    let input = interaction.options.get('input').value; // Required, so should not be null
+    let reactions = tryConvertToReactions(input);
+    let message = (await interaction.channel?.messages?.fetch({ limit: 1 }))?.last(); // Grab the last message in the channel
     if (message && reactions) {
         interaction.reply({ content: "Reactions on the way!", ephemeral: true });
 
         for (const r of reactions) {
-            await message.react(r);
+            var err = false;
+            await message.react(r).catch((reason) => {
+                err = true;
+            });
+
+            if (err) {
+                break;
+            }
         }
     }
     else {
-        interaction.reply({ content: "Failed to react", ephemeral: true });
+        let reason = "Unknown reason";
+        if (!reactions) {
+            reason = "Could not convert input to emoji";
+        }
+        else if (!message) {
+            reason = "Could not fetch previous message";
+        }
+
+        interaction.reply({ content: "Failed to react: "+reason, ephemeral: true });
     }
 });
 
@@ -69,7 +86,7 @@ function tryConvertToReactions(inText) {
     // Check text to ensure:
     // 1. Each letter is in our alphabet
     // 2. We have enough of each character in the alphabet
-    var letterCount = count(text);
+    var letterCount = countCharacters(text);
     for (const elem of letterCount) {
         let char = elem[0];
         let charCount = elem[1];
@@ -94,7 +111,7 @@ function tryConvertToReactions(inText) {
 }
 
 // TODO: Not sure how safe this would be with non-English
-function count(string) {
+function countCharacters(string) {
     var count = new Map();
     string.split('').forEach(function(s) {
         count.set(s, (count.get(s) ?? 0) + 1);
