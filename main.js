@@ -37,6 +37,8 @@ else {
 }
 
 client.on('interactionCreate', async (interaction) => {
+    console.log('interactionCreate fired. User: '+interaction.user.tag ?? 'unknown#xxxx');
+
     if (!interaction.isCommand()) {
         console.log('Received interaction that was not a command');
         return;
