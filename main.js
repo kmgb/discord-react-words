@@ -37,19 +37,27 @@ else {
 
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isCommand()) {
+        console.log('Received interaction that was not a command');
         return;
     }
 
     if (interaction.commandName !== 'react') {
         interaction.reply({ content: 'Unknown command', ephemeral: true });
+        console.log('Received interaction with invalid command name: '+interaction.commandName);
         return;
     }
 
     let input = interaction.options.get('input').value; // Required, so should not be null
+
+    console.log('Received /react interaction with input: '+input);
+
     let reactions = tryConvertToReactions(input);
     let message = (await interaction.channel?.messages?.fetch({ limit: 1 }))?.last(); // Grab the last message in the channel
     if (message && reactions) {
-        interaction.reply({ content: "Reactions on the way!", ephemeral: true });
+        interaction.reply({ content: 'Reactions on the way!', ephemeral: true });
+
+        console.log('Emoji conversion and message fetch successful: '+reactions);
+        console.log('Starting to add reactions');
 
         for (const r of reactions) {
             var err = false;
@@ -58,20 +66,24 @@ client.on('interactionCreate', async (interaction) => {
             });
 
             if (err) {
+                console.log('Error while adding reactions');
                 break;
             }
         }
+
+        console.log('Finished adding reactions');
     }
     else {
-        let reason = "Unknown reason";
+        let reason = 'Unknown reason';
         if (!reactions) {
-            reason = "Could not convert input to emoji";
+            reason = 'Could not convert input to emoji';
         }
         else if (!message) {
-            reason = "Could not fetch previous message";
+            reason = 'Could not fetch previous message';
         }
 
-        interaction.reply({ content: "Failed to react: "+reason, ephemeral: true });
+        console.log('Failed reaction: '+reason);
+        interaction.reply({ content: 'Failed to react: '+reason, ephemeral: true });
     }
 });
 
